@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>iOS Remote Control</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <h1><i class="fas fa-mobile-alt"></i> iOS Remote Control</h1>
+        <div class="status-indicators">
+          <div class="status-item" id="simulator-status">
+            <i class="fas fa-circle status-dot"></i>
+            <span>Simulator: Disconnected</span>
+          </div>
+          <div class="status-item" id="stream-status">
+            <i class="fas fa-circle status-dot"></i>
+            <span>Stream: Stopped</span>
+          </div>
+          <div class="status-item" id="wda-status">
+            <i class="fas fa-circle status-dot"></i>
+            <span>WDA: Disconnected</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Control Panel -->
+        <div class="control-panel">
+          <div class="control-section">
+            <h3><i class="fas fa-cogs"></i> Simulator Control</h3>
+            <div class="button-group">
+              <button id="start-simulator" class="btn btn-primary">
+                <i class="fas fa-play"></i> Start Simulator
+              </button>
+              <button id="stop-simulator" class="btn btn-danger" disabled>
+                <i class="fas fa-stop"></i> Stop Simulator
+              </button>
+              <button id="refresh-simulators" class="btn btn-secondary">
+                <i class="fas fa-sync"></i> Refresh
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h3><i class="fas fa-video"></i> Streaming</h3>
+            <div class="button-group">
+              <button id="start-stream" class="btn btn-success" disabled>
+                <i class="fas fa-play-circle"></i> Start Stream
+              </button>
+              <button id="stop-stream" class="btn btn-warning" disabled>
+                <i class="fas fa-stop-circle"></i> Stop Stream
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h3><i class="fas fa-keyboard"></i> Input Control</h3>
+            <div class="input-group">
+              <input
+                type="text"
+                id="keyboard-input"
+                placeholder="Type text to send..."
+                disabled
+              />
+              <button id="send-keys" class="btn btn-info" disabled>
+                <i class="fas fa-paper-plane"></i> Send
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulator Display -->
+        <div class="simulator-display">
+          <div class="display-header">
+            <h3><i class="fas fa-mobile-alt"></i> Simulator Screen</h3>
+            <div class="display-controls">
+              <button id="fullscreen-btn" class="btn btn-sm btn-secondary">
+                <i class="fas fa-expand"></i>
+              </button>
+              <button id="screenshot-btn" class="btn btn-sm btn-secondary">
+                <i class="fas fa-camera"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="display-container" id="display-container">
+            <div class="placeholder" id="placeholder">
+              <i class="fas fa-mobile-alt"></i>
+              <p>Start the simulator and stream to see the screen</p>
+            </div>
+            <canvas
+              id="simulator-canvas"
+              class="simulator-canvas"
+              style="display: none"
+            ></canvas>
+            <video
+              id="simulator-video"
+              class="simulator-video"
+              style="display: none"
+            ></video>
+          </div>
+
+          <!-- Touch Controls Overlay -->
+          <div class="touch-overlay" id="touch-overlay" style="display: none">
+            <div class="touch-indicator" id="touch-indicator"></div>
+          </div>
+        </div>
+
+        <!-- Simulator List -->
+        <div class="simulator-list">
+          <h3><i class="fas fa-list"></i> Available Simulators</h3>
+          <div class="simulator-grid" id="simulator-grid">
+            <div class="loading">Loading simulators...</div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>&copy; 2024 iOS Remote Control | Built with Node.js & Socket.IO</p>
+      </footer>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="error-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+          <button class="close-btn" id="close-error-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="error-message"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loading-spinner">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
+
