@@ -89,6 +89,24 @@
               <button id="screenshot-btn" class="btn btn-sm btn-secondary">
                 <i class="fas fa-camera"></i>
               </button>
+              <button id="debug-btn" class="btn btn-sm btn-warning">
+                <i class="fas fa-bug"></i>
+              </button>
+              <button id="test-grid-btn" class="btn btn-sm btn-info">
+                <i class="fas fa-th"></i>
+              </button>
+              <button id="test-click-btn" class="btn btn-sm btn-danger">
+                <i class="fas fa-mouse-pointer"></i>
+              </button>
+              <button id="test-canvas-btn" class="btn btn-sm btn-success">
+                <i class="fas fa-palette"></i>
+              </button>
+              <button id="check-viewport-btn" class="btn btn-sm btn-primary">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button id="test-alignment-btn" class="btn btn-sm btn-secondary">
+                <i class="fas fa-ruler-combined"></i>
+              </button>
             </div>
           </div>
 
@@ -107,11 +125,12 @@
               class="simulator-video"
               style="display: none"
             ></video>
-          </div>
 
-          <!-- Touch Controls Overlay -->
-          <div class="touch-overlay" id="touch-overlay" style="display: none">
-            <div class="touch-indicator" id="touch-indicator"></div>
+            <!-- Touch Controls Overlay -->
+            <div class="touch-overlay" id="touch-overlay" style="display: none">
+              <div class="touch-indicator" id="touch-indicator"></div>
+              <div class="coordinate-display" id="coordinate-display"></div>
+            </div>
           </div>
         </div>
 
@@ -154,4 +173,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-

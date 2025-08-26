@@ -35,9 +35,33 @@ io.on("connection", (socket) => {
   // Handle simulator control
   socket.on("start-simulator", async () => {
     try {
-      const result = await simctl.startSimulator();
-      socket.emit("simulator-status", { status: "started", result });
+      console.log("🔄 Starting simulator process...");
+
+      // Use WDA client to start simulator
+      console.log("🔍 Checking WDA availability...");
+      const isAvailable = await wdaClient.checkIDB();
+
+      if (!isAvailable) {
+        throw new Error("IDB/Xcode tools not available");
+      }
+
+      console.log("📱 Listing available simulators...");
+      const devices = await wdaClient.listDevices();
+
+      if (devices.length === 0) {
+        throw new Error("No iOS simulators found");
+      }
+
+      console.log("🚀 Connecting to simulator...");
+      const deviceId = await wdaClient.connectToDevice();
+
+      console.log("✅ Simulator connected successfully:", deviceId);
+      socket.emit("simulator-status", {
+        status: "started",
+        result: { deviceId },
+      });
     } catch (error) {
+      console.error("❌ Error starting simulator:", error);
       socket.emit("error", {
         message: "Failed to start simulator",
         error: error.message,
@@ -47,8 +71,8 @@ io.on("connection", (socket) => {
 
   socket.on("stop-simulator", async () => {
     try {
-      const result = await simctl.stopSimulator();
-      socket.emit("simulator-status", { status: "stopped", result });
+      await wdaClient.disconnect();
+      socket.emit("simulator-status", { status: "stopped", result: {} });
     } catch (error) {
       socket.emit("error", {
         message: "Failed to stop simulator",
@@ -59,7 +83,17 @@ io.on("connection", (socket) => {
 
   socket.on("get-simulators", async () => {
     try {
-      const simulators = await simctl.listSimulators();
+      // Use WDA client to list simulators
+      const devices = await wdaClient.listDevices();
+
+      // Convert to format expected by frontend
+      const simulators = devices.map((device) => ({
+        id: device.id,
+        name: device.name,
+        runtime: device.os || "Unknown",
+        state: device.status === "Booted" ? "booted" : "shutdown",
+      }));
+
       socket.emit("simulators-list", simulators);
     } catch (error) {
       socket.emit("error", {
@@ -69,12 +103,18 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle input events
+  // Handle input events using IDB client with error handling
   socket.on("tap", async (data) => {
     try {
+      console.log("👆 Received tap event:", data);
+      if (!data.x || !data.y) {
+        throw new Error("Invalid tap coordinates");
+      }
+
       const result = await wdaClient.tap(data.x, data.y);
       socket.emit("input-result", { type: "tap", success: true, result });
     } catch (error) {
+      console.error("❌ Tap error:", error.message);
       socket.emit("input-result", {
         type: "tap",
         success: false,
@@ -85,15 +125,21 @@ io.on("connection", (socket) => {
 
   socket.on("swipe", async (data) => {
     try {
+      console.log("👆 Received swipe event:", data);
+      if (!data.startX || !data.startY || !data.endX || !data.endY) {
+        throw new Error("Invalid swipe coordinates");
+      }
+
       const result = await wdaClient.swipe(
         data.startX,
         data.startY,
         data.endX,
         data.endY,
-        data.duration
+        data.duration || 1000
       );
       socket.emit("input-result", { type: "swipe", success: true, result });
     } catch (error) {
+      console.error("❌ Swipe error:", error.message);
       socket.emit("input-result", {
         type: "swipe",
         success: false,
@@ -104,9 +150,15 @@ io.on("connection", (socket) => {
 
   socket.on("keyboard-input", async (data) => {
     try {
+      console.log("⌨️ Received keyboard event:", data);
+      if (!data.text || data.text.trim().length === 0) {
+        throw new Error("Empty keyboard input");
+      }
+
       const result = await wdaClient.sendKeys(data.text);
       socket.emit("input-result", { type: "keyboard", success: true, result });
     } catch (error) {
+      console.error("❌ Keyboard error:", error.message);
       socket.emit("input-result", {
         type: "keyboard",
         success: false,
@@ -148,7 +200,13 @@ io.on("connection", (socket) => {
 // API endpoints
 app.get("/api/simulators", async (req, res) => {
   try {
-    const simulators = await simctl.listSimulators();
+    const devices = await wdaClient.listDevices();
+    const simulators = devices.map((device) => ({
+      id: device.id,
+      name: device.name,
+      runtime: device.os || "Unknown",
+      state: device.status === "Booted" ? "booted" : "shutdown",
+    }));
     res.json(simulators);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -157,24 +215,123 @@ app.get("/api/simulators", async (req, res) => {
 
 app.get("/api/screenshot", async (req, res) => {
   try {
-    const screenshot = await simctl.takeScreenshot();
-    res.set("Content-Type", "image/png");
-    res.send(screenshot);
+    console.log("📸 Screenshot API called");
+
+    if (!wdaClient.isConnected) {
+      console.log("⚠️ No simulator connected, connecting...");
+      await wdaClient.connectToDevice();
+    }
+
+    // Take screenshot with absolute path
+    const screenshotPath = path.join(__dirname, `screenshot_${Date.now()}.png`);
+
+    try {
+      // Use simpler approach with execSync
+      const { execSync } = require("child_process");
+      execSync(
+        `xcrun simctl io ${wdaClient.currentDevice} screenshot ${screenshotPath}`
+      );
+      console.log("✅ Screenshot taken successfully");
+
+      // Read the screenshot file and send it
+      const fs = require("fs");
+      const screenshotData = fs.readFileSync(screenshotPath);
+
+      // Set proper headers
+      res.writeHead(200, {
+        "Content-Type": "image/png",
+        "Content-Length": screenshotData.length,
+        "Cache-Control": "no-cache, no-store",
+      });
+
+      // Send the data
+      res.end(screenshotData);
+
+      // Clean up the file after sending (with delay to ensure it's sent)
+      setTimeout(() => {
+        try {
+          fs.unlinkSync(screenshotPath);
+        } catch (cleanupError) {
+          console.log(
+            "⚠️ Could not delete screenshot file:",
+            cleanupError.message
+          );
+        }
+      }, 100);
+    } catch (screenshotError) {
+      console.error("❌ Screenshot error:", screenshotError.message);
+      res.status(500).json({ error: "Failed to take screenshot" });
+    }
   } catch (error) {
+    console.error("❌ Screenshot API error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
+// New API endpoint to test WDA client
+app.get("/api/test-wda", async (req, res) => {
+  try {
+    const isAvailable = await wdaClient.checkIDB();
+    const devices = await wdaClient.listDevices();
+    const status = wdaClient.getStatus();
+
+    res.json({
+      status: isAvailable ? "success" : "error",
+      message: isAvailable ? "WDA client working" : "WDA is not available",
+      wdaStatus: status,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+      wdaStatus: wdaClient.getStatus(),
+    });
+  }
+});
+
+// New API endpoint to debug coordinate system
+app.get("/api/debug-coordinates", async (req, res) => {
+  try {
+    console.log("🔍 Debug coordinate system requested");
+    const coordinateInfo = await wdaClient.debugCoordinateSystem();
+
+    res.json({
+      status: "success",
+      message: "Coordinate system debug info retrieved",
+      coordinateInfo: coordinateInfo,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+});
+
 // Start server
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 iOS Remote server running on http://localhost:${PORT}`);
   console.log(`📱 Ready to control iOS simulator`);
+
+  // Test WDA client on startup
+  try {
+    console.log("🔍 Testing WDA client...");
+    const isAvailable = await wdaClient.checkIDB();
+    if (isAvailable) {
+      const devices = await wdaClient.listDevices();
+      console.log(`✅ WDA client working - Found ${devices.length} simulators`);
+    } else {
+      console.log("❌ WDA client not available");
+    }
+  } catch (error) {
+    console.log(`❌ Error testing WDA client: ${error.message}`);
+  }
 });
 
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("\n🛑 Shutting down gracefully...");
   await ffmpegStream.stopStream();
+  await wdaClient.disconnect();
   process.exit(0);
 });
-

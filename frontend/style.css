@@ -80,7 +80,7 @@ body {
 /* Main Content */
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-columns: 1fr 3fr 1fr;
   gap: 30px;
   margin-bottom: 30px;
 }
@@ -235,10 +235,17 @@ body {
   background: #f5f5f5;
   border-radius: 15px;
   overflow: hidden;
-  min-height: 400px;
+  min-height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.simulator-canvas,
+.simulator-video {
+  position: absolute;
+  border-radius: 15px;
+  /* border: 2px solid red; Debug border - remove this later */
 }
 
 .placeholder {
@@ -256,22 +263,13 @@ body {
   font-size: 1.1rem;
 }
 
-.simulator-canvas,
-.simulator-video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 15px;
-}
-
 .touch-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
   z-index: 10;
+  /* Position and size will be set dynamically by JavaScript to match canvas */
+  background: transparent;
+  /* border: 2px solid blue; Debug border - remove this later */
 }
 
 .touch-indicator {
@@ -284,6 +282,22 @@ body {
   transform: translate(-50%, -50%);
   pointer-events: none;
   animation: touch-pulse 0.3s ease-out;
+  z-index: 11;
+}
+
+.coordinate-display {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: monospace;
+  pointer-events: none;
+  z-index: 12;
+  display: none;
 }
 
 @keyframes touch-pulse {
@@ -576,4 +590,3 @@ body {
     padding: 10px 15px;
   }
 }
-

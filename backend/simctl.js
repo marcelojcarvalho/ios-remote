@@ -16,42 +16,66 @@ class SimctlManager {
    */
   async listSimulators() {
     try {
-      const { stdout } = await execAsync("xcrun simctl list devices available");
+      // First get all devices (including booted ones)
+      const { stdout } = await execAsync("xcrun simctl list devices");
+      console.log("Raw simctl output:");
+      console.log(stdout);
+
       const lines = stdout.split("\n");
       const simulators = [];
 
       for (const line of lines) {
         if (line.includes("iPhone") || line.includes("iPad")) {
-          const match = line.match(/([A-F0-9-]+)\s+\(([^)]+)\)\s+\(([^)]+)\)/);
+          console.log(`Processing line: "${line}"`);
+
+          // Updated regex to correctly parse: "Device Name (UUID) (State)"
+          const match = line.match(
+            /^\s+([^(]+)\s+\(([A-F0-9-]+)\)\s+\(([^)]+)\)/
+          );
+
           if (match) {
+            const deviceName = match[1].trim();
+            const deviceId = match[2].trim();
+            const deviceState = match[3].trim();
+
+            console.log(
+              `✅ Matched: Name="${deviceName}", ID="${deviceId}", State="${deviceState}"`
+            );
+
             simulators.push({
-              id: match[1].trim(),
-              name: match[2].trim(),
-              runtime: match[3].trim(),
-              state: "unknown",
+              id: deviceId,
+              name: deviceName,
+              runtime: "iOS", // We'll get the actual runtime from the section header
+              state: deviceState.toLowerCase(),
             });
+          } else {
+            console.log(`❌ No match for line: "${line}"`);
           }
         }
       }
 
-      // Get state for each simulator
+      // State is already parsed from the line, just set currentSimulator if booted
       for (const simulator of simulators) {
-        try {
-          const { stdout: stateOutput } = await execAsync(
-            `xcrun simctl list devices | grep "${simulator.id}"`
+        if (simulator.state === "booted") {
+          this.currentSimulator = simulator;
+          console.log(
+            `🎯 Set current simulator: ${simulator.name} (${simulator.id})`
           );
-          if (stateOutput.includes("Booted")) {
-            simulator.state = "booted";
-            this.currentSimulator = simulator;
-          } else if (stateOutput.includes("Shutdown")) {
-            simulator.state = "shutdown";
-          }
-        } catch (error) {
-          simulator.state = "unknown";
         }
       }
 
       this.simulators = simulators;
+
+      // Debug logging
+      console.log(`📱 Found ${simulators.length} simulators:`);
+      simulators.forEach((sim) => {
+        console.log(`  - ${sim.name} (${sim.id}): ${sim.state}`);
+      });
+
+      // Check for booted simulators specifically
+      const bootedCount = simulators.filter((s) => s.state === "booted").length;
+      console.log(`🔍 Booted simulators: ${bootedCount}`);
+
       return simulators;
     } catch (error) {
       console.error("Error listing simulators:", error);
@@ -67,12 +91,31 @@ class SimctlManager {
       let targetDevice = deviceId;
 
       if (!targetDevice) {
-        // Use first available iPhone simulator if none specified
-        const availableSims = this.simulators.filter((s) =>
+        // First check if there's already a booted simulator
+        const bootedSims = this.simulators.filter(
+          (s) => s.state === "booted" && s.name.includes("iPhone")
+        );
+
+        if (bootedSims.length > 0) {
+          console.log(`Found booted simulator: ${bootedSims[0].name}`);
+          this.currentSimulator = bootedSims[0];
+          return {
+            success: true,
+            deviceId: bootedSims[0].id,
+            alreadyRunning: true,
+          };
+        }
+
+        // If no booted simulator, check for any iPhone simulators (including shutdown ones)
+        const anyIPhoneSims = this.simulators.filter((s) =>
           s.name.includes("iPhone")
         );
-        if (availableSims.length > 0) {
-          targetDevice = availableSims[0].id;
+
+        if (anyIPhoneSims.length > 0) {
+          targetDevice = anyIPhoneSims[0].id;
+          console.log(
+            `Using iPhone simulator: ${anyIPhoneSims[0].name} (${anyIPhoneSims[0].state})`
+          );
         } else {
           throw new Error("No iPhone simulators available");
         }
@@ -166,6 +209,33 @@ class SimctlManager {
     } catch (error) {
       console.error("Error getting simulator info:", error);
       throw new Error(`Failed to get simulator info: ${error.message}`);
+    }
+  }
+
+  /**
+   * Refresh simulator list and find booted ones
+   */
+  async refreshSimulators() {
+    try {
+      console.log("🔄 Refreshing simulator list...");
+      await this.listSimulators();
+
+      // Find currently booted simulator
+      const bootedSim = this.simulators.find((s) => s.state === "booted");
+      if (bootedSim) {
+        this.currentSimulator = bootedSim;
+        console.log(
+          `✅ Found booted simulator: ${bootedSim.name} (${bootedSim.id})`
+        );
+        return bootedSim;
+      } else {
+        console.log("ℹ️ No booted simulator found");
+      }
+
+      return null;
+    } catch (error) {
+      console.error("❌ Error refreshing simulators:", error);
+      throw error;
     }
   }
 
