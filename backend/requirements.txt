@@ -1,3 +1,0 @@
-# macOS iOS automation dependencies
-idb>=2.0.0
-asyncio

@@ -11,7 +11,7 @@ class WDAClient {
   /**
    * Check if Xcode and iOS tools are available
    */
-  async checkIDB() {
+  async checkXcode() {
     try {
       const result = await this.runCommand(["version"]);
 

@@ -38,11 +38,11 @@ io.on("connection", (socket) => {
       console.log("🔄 Starting simulator process...");
 
       // Use WDA client to start simulator
-      console.log("🔍 Checking WDA availability...");
-      const isAvailable = await wdaClient.checkIDB();
+      console.log("🔍 Checking Xcode availability...");
+      const isAvailable = await wdaClient.checkXcode();
 
       if (!isAvailable) {
-        throw new Error("IDB/Xcode tools not available");
+        throw new Error("Xcode tools not available");
       }
 
       console.log("📱 Listing available simulators...");
@@ -103,7 +103,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle input events using IDB client with error handling
+  // Handle input events using WDA client with error handling
   socket.on("tap", async (data) => {
     try {
       console.log("👆 Received tap event:", data);
@@ -271,7 +271,7 @@ app.get("/api/screenshot", async (req, res) => {
 // New API endpoint to test WDA client
 app.get("/api/test-wda", async (req, res) => {
   try {
-    const isAvailable = await wdaClient.checkIDB();
+    const isAvailable = await wdaClient.checkXcode();
     const devices = await wdaClient.listDevices();
     const status = wdaClient.getStatus();
 
@@ -316,7 +316,7 @@ server.listen(PORT, async () => {
   // Test WDA client on startup
   try {
     console.log("🔍 Testing WDA client...");
-    const isAvailable = await wdaClient.checkIDB();
+    const isAvailable = await wdaClient.checkXcode();
     if (isAvailable) {
       const devices = await wdaClient.listDevices();
       console.log(`✅ WDA client working - Found ${devices.length} simulators`);

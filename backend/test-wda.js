@@ -8,13 +8,13 @@ async function testWDAClient() {
   try {
     // Test 1: Check if WDA is available
     console.log("1️⃣ Testing WDA availability...");
-    const isAvailable = await wda.checkIDB();
+    const isAvailable = await wda.checkXcode();
     console.log(
       `Result: ${isAvailable ? "✅ Available" : "❌ Not Available"}\n`
     );
 
     if (!isAvailable) {
-      console.log("❌ WDA not available, skipping other tests");
+      console.log("❌ Xcode not available, skipping other tests");
       return;
     }
 
