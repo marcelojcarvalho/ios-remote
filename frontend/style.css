@@ -118,6 +118,45 @@ body {
   gap: 10px;
 }
 
+.streaming-mode-controls {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.streaming-mode-controls h4 {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mode-buttons .btn {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+}
+
+.mode-buttons .btn.active {
+  background-color: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+.mode-info {
+  text-align: center;
+}
+
+.mode-info small {
+  color: #888;
+  font-size: 0.75rem;
+}
+
 .btn {
   padding: 12px 20px;
   border: none;

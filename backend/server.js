@@ -5,7 +5,7 @@ const path = require("path");
 const cors = require("cors");
 const SimctlManager = require("./simctl");
 const WDAClient = require("./wda-client");
-const FFmpegStream = require("./ffmpeg-stream");
+const WebRTCStream = require("./webrtc-stream");
 
 const app = express();
 const server = http.createServer(app);
@@ -26,7 +26,7 @@ app.use(express.static(path.join(__dirname, "../frontend")));
 // Initialize managers
 const simctl = new SimctlManager();
 const wdaClient = new WDAClient();
-const ffmpegStream = new FFmpegStream();
+const webrtcStream = new WebRTCStream();
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
@@ -170,7 +170,7 @@ io.on("connection", (socket) => {
   // Handle video streaming
   socket.on("start-stream", async () => {
     try {
-      await ffmpegStream.startStream(socket);
+      await webrtcStream.startStream(socket);
       socket.emit("stream-status", { status: "started" });
     } catch (error) {
       socket.emit("error", {
@@ -182,7 +182,7 @@ io.on("connection", (socket) => {
 
   socket.on("stop-stream", async () => {
     try {
-      await ffmpegStream.stopStream();
+      await webrtcStream.stopStream();
       socket.emit("stream-status", { status: "stopped" });
     } catch (error) {
       socket.emit("error", {
@@ -192,8 +192,46 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Handle WebRTC signaling
+  socket.on("webrtc-signal", async (data) => {
+    try {
+      // Forward WebRTC signals to the streaming manager
+      console.log("📡 WebRTC signal received:", data.type);
+      // The signal will be handled by the WebRTC peer connection
+    } catch (error) {
+      console.error("WebRTC signal error:", error);
+    }
+  });
+
+  // Handle streaming mode changes
+  socket.on("enable-webrtc-mode", async () => {
+    try {
+      const result = await webrtcStream.enableWebRTCMode();
+      socket.emit("streaming-mode-changed", result);
+    } catch (error) {
+      socket.emit("error", {
+        message: "Failed to enable WebRTC mode",
+        error: error.message,
+      });
+    }
+  });
+
+  socket.on("enable-screenshot-mode", async () => {
+    try {
+      const result = await webrtcStream.enableScreenshotMode();
+      socket.emit("streaming-mode-changed", result);
+    } catch (error) {
+      socket.emit("error", {
+        message: "Failed to enable screenshot mode",
+        error: error.message,
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
+    // Clean up WebRTC connections
+    webrtcStream.handleClientDisconnect(socket.id);
   });
 });
 
@@ -308,6 +346,26 @@ app.get("/api/debug-coordinates", async (req, res) => {
   }
 });
 
+// New API endpoint to get streaming status and modes
+app.get("/api/streaming-status", async (req, res) => {
+  try {
+    const status = webrtcStream.getStatus();
+    const modes = webrtcStream.getSupportedModes();
+
+    res.json({
+      status: "success",
+      streaming: status,
+      supportedModes: modes,
+      currentMode: status.mode,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+});
+
 // Start server
 server.listen(PORT, async () => {
   console.log(`🚀 iOS Remote server running on http://localhost:${PORT}`);
@@ -331,7 +389,7 @@ server.listen(PORT, async () => {
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("\n🛑 Shutting down gracefully...");
-  await ffmpegStream.stopStream();
+  await webrtcStream.stopStream();
   await wdaClient.disconnect();
   process.exit(0);
 });

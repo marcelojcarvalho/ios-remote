@@ -13,6 +13,9 @@ class IOSRemoteApp {
     this.video = null;
     this.touchStartPos = null;
     this.screenshotInterval = null;
+    this.webrtcPeer = null;
+    this.webrtcStream = null;
+    this.streamingMode = "webrtc"; // 'screenshot' or 'webrtc'
 
     this.init();
   }
@@ -31,6 +34,7 @@ class IOSRemoteApp {
     this.setupEventListeners();
     this.setupCanvas();
     this.loadSimulators();
+    this.initializeStreamingStatus();
 
     // Test touch indicator positioning after a short delay
     setTimeout(() => {
@@ -137,6 +141,31 @@ class IOSRemoteApp {
     this.socket.on("request-screenshot", () => {
       this.requestScreenshot();
     });
+
+    // WebRTC event handlers
+    this.socket.on("webrtc-signal", (data) => {
+      this.handleWebRTCSignal(data);
+    });
+
+    this.socket.on("webrtc-connected", () => {
+      console.log("✅ WebRTC connection established");
+      this.handleWebRTCConnected();
+    });
+
+    this.socket.on("webrtc-stream", (data) => {
+      console.log("📹 WebRTC stream received:", data);
+      this.handleWebRTCStream(data);
+    });
+
+    this.socket.on("webrtc-error", (data) => {
+      console.error("❌ WebRTC error:", data.error);
+      this.showError(`WebRTC error: ${data.error}`);
+    });
+
+    this.socket.on("streaming-mode-changed", (data) => {
+      console.log("🔄 Streaming mode changed:", data);
+      this.handleStreamingModeChange(data);
+    });
   }
 
   setupEventListeners() {
@@ -163,6 +192,19 @@ class IOSRemoteApp {
     document.getElementById("stop-stream").addEventListener("click", () => {
       this.stopStream();
     });
+
+    // Streaming mode control buttons
+    document
+      .getElementById("enable-screenshot-mode")
+      .addEventListener("click", () => {
+        this.enableScreenshotMode();
+      });
+
+    document
+      .getElementById("enable-webrtc-mode")
+      .addEventListener("click", () => {
+        this.enableWebRTCMode();
+      });
 
     // Input controls
     document.getElementById("send-keys").addEventListener("click", () => {
@@ -1261,6 +1303,151 @@ class IOSRemoteApp {
     this.ctx.restore();
 
     console.log("✅ Crosshair drawn successfully");
+  }
+
+  // WebRTC Methods
+  async handleWebRTCSignal(data) {
+    try {
+      if (this.webrtcPeer) {
+        this.webrtcPeer.signal(data);
+      }
+    } catch (error) {
+      console.error("Error handling WebRTC signal:", error);
+    }
+  }
+
+  handleWebRTCConnected() {
+    console.log("🌐 WebRTC connection established");
+    this.streamingMode = "webrtc";
+    this.updateStreamStatus("webrtc-connected");
+  }
+
+  handleWebRTCStream(data) {
+    try {
+      console.log("📹 Handling WebRTC stream:", data);
+      // When we receive a WebRTC stream, we'll display it
+      // For now, this is a placeholder for when testing on real iOS device
+      this.showWebRTCStream();
+    } catch (error) {
+      console.error("Error handling WebRTC stream:", error);
+    }
+  }
+
+  showWebRTCStream() {
+    // This will be implemented when testing on real iOS device
+    console.log("🌐 WebRTC stream display placeholder");
+    // The actual implementation would:
+    // 1. Get the video element
+    // 2. Set the WebRTC stream as the source
+    // 3. Hide canvas, show video
+  }
+
+  handleStreamingModeChange(data) {
+    if (data.success) {
+      this.streamingMode = data.mode;
+      console.log(`🔄 Streaming mode changed to: ${this.streamingMode}`);
+
+      // Update UI to reflect current mode
+      this.updateStreamingModeUI();
+
+      if (this.streamingMode === "webrtc") {
+        this.updateStreamStatus("webrtc-ready");
+        this.showMessage(`Streaming mode: ${data.modes[data.mode].name}`);
+      } else {
+        this.updateStreamStatus("screenshot-mode");
+        this.showMessage(`Streaming mode: ${data.modes[data.mode].name}`);
+      }
+    }
+  }
+
+  updateStreamingModeUI() {
+    const screenshotBtn = document.getElementById("enable-screenshot-mode");
+    const webrtcBtn = document.getElementById("enable-webrtc-mode");
+    const modeInfo = document.getElementById("current-mode-info");
+
+    if (screenshotBtn && webrtcBtn && modeInfo) {
+      if (this.streamingMode === "screenshot") {
+        screenshotBtn.classList.add("active");
+        webrtcBtn.classList.remove("active");
+        modeInfo.textContent =
+          "Current: Screenshot Mode (for simulator testing)";
+      } else {
+        webrtcBtn.classList.add("active");
+        screenshotBtn.classList.remove("active");
+        modeInfo.textContent = "Current: WebRTC Mode (for real iOS device)";
+      }
+    }
+  }
+
+  // Initialize streaming status and UI with WebRTC as default
+  async initializeStreamingStatus() {
+    try {
+      const status = await this.getStreamingStatus();
+      if (status) {
+        this.updateStreamingModeUI();
+      } else {
+        // If no status from server, default to WebRTC mode
+        this.streamingMode = "webrtc";
+        this.updateStreamingModeUI();
+      }
+    } catch (error) {
+      console.error("Error initializing streaming status:", error);
+      // Default to WebRTC mode on error
+      this.streamingMode = "webrtc";
+      this.updateStreamingModeUI();
+    }
+  }
+
+  // Method to enable WebRTC mode (for testing on real iOS device)
+  async enableWebRTCMode() {
+    try {
+      this.socket.emit("enable-webrtc-mode");
+    } catch (error) {
+      this.showError("Failed to enable WebRTC mode: " + error.message);
+    }
+  }
+
+  // Method to enable screenshot mode (for simulator testing)
+  async enableScreenshotMode() {
+    try {
+      this.socket.emit("enable-screenshot-mode");
+    } catch (error) {
+      this.showError("Failed to enable screenshot mode: " + error.message);
+    }
+  }
+
+  // Get streaming status from server
+  async getStreamingStatus() {
+    try {
+      const response = await fetch("/api/streaming-status");
+      const data = await response.json();
+
+      if (data.status === "success") {
+        this.streamingMode = data.currentMode;
+        console.log("📊 Streaming status:", data);
+        return data;
+      }
+    } catch (error) {
+      console.error("Error getting streaming status:", error);
+    }
+  }
+
+  // Initialize streaming status and UI
+  async initializeStreamingStatus() {
+    try {
+      const status = await this.getStreamingStatus();
+      if (status) {
+        this.updateStreamingModeUI();
+      }
+    } catch (error) {
+      console.error("Error initializing streaming status:", error);
+    }
+  }
+
+  // Show informational message
+  showMessage(message) {
+    console.log("ℹ️", message);
+    // You could implement a toast notification here
   }
 }
 

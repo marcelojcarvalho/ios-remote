@@ -22,15 +22,13 @@
     "socket.io": "^4.7.2",
     "ws": "^8.14.2",
     "axios": "^1.5.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "simple-peer": "^9.11.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=16.0.0"
-  },
-  "optionalDependencies": {
-    "fluent-ffmpeg": "^2.1.2"
   }
 }
